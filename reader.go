@@ -79,7 +79,8 @@ func (b Builder) WithNormalizeNewline() Builder {
 }
 
 // WithUnicodeEscape adds a unicode escape transformer to the Reader to be created. A unicode escape transformer
-// transform a rune sequence '\uXXXX' to the unicode rune represented by the hexadecimal number 'XXXX'.
+// transform the common unicode escape rune sequence '\uhhhh' to the unicode rune represented by the hexadecimal
+// number '0xhhhh'.
 func (b Builder) WithUnicodeEscape() Builder {
 	b.reader.transformers = append(b.reader.transformers, unicodeEscape{})
 	return b
@@ -117,6 +118,7 @@ func (b Builder) Reader() *Reader {
 	return reader
 }
 
+// The start position of the Reader source. Note that the first row is 1 and first column is 1.
 var startPosition = Position{
 	Row: 1,
 	Col: 1,
@@ -169,6 +171,7 @@ func (r *Reader) Next() (c Char, err error) {
 			return
 		}
 	}
+	// Read next rune (Char) in buffer.
 	var ok bool
 	c, ok = r.buffer.Next()
 	if !ok {
@@ -205,6 +208,7 @@ func (r *Reader) Commit() {
 }
 
 func (r *Reader) bufferChar() error {
+	// Read next rune from source
 	ru, pos, err := r.readRune()
 	if err != nil {
 		if errors.Is(err, io.EOF) {
@@ -213,7 +217,7 @@ func (r *Reader) bufferChar() error {
 		}
 		return goerrors.NewPositionalError(pos.Row, pos.Col, fmt.Errorf("error reading rune from source: %w", err))
 	}
-	// Apply transformers
+	// Apply transformers to read rune (wrapped in a Char).
 	c := Char{
 		Rune: ru,
 		Pos:  pos,
@@ -224,12 +228,15 @@ func (r *Reader) bufferChar() error {
 			return err
 		}
 	}
-	// Buffer transformed rune
+	// Buffer transformed rune (Char)
 	r.buffer.Write(c)
 	return nil
 }
 
 func (r *Reader) readRune() (ru rune, pos Position, err error) {
+	// Read the next rune from source and step "next position". Note that we as default treat newline
+	// as an ordinary rune and will not bump the row. If such behaviour is wanted the NormalizeNewline
+	// transformer should be used.
 	ru, _, err = r.reader.ReadRune()
 	if err != nil {
 		pos = r.pos
@@ -245,29 +252,31 @@ func (r *Reader) unreadRune() (err error) {
 	return
 }
 
+// step moves the column position the specified number of steps. If 'i' is positive then we move forward and
+// if 'i' is negative we move backwards. The previous position (before the move) is returned. Note that we don't
+// manage newline as default. The step function will therefore not move the current row in any way.
 func (r *Reader) step(i int) (pos Position) {
 	pos = r.pos
 	r.pos.Col += i
-	if r.pos.Col < 0 {
-		if r.pos.Row > 0 {
-			r.pos.Row -= 1
-		}
-		r.pos.Col = 0
-	}
 	return
 }
 
+// newline moves the current position to the start of the next row.
 func (r *Reader) newline() {
 	r.pos.Row += 1
 	r.pos.Col = startPosition.Col
 }
 
 type transformer interface {
+	// Transform perform applicable transformations to the provided rune (Char). The transformed rune (Char) is
+	// returned. If there was an error in the transformation the error is returned.  The current Reader is
+	// provided so that the transformer may be able to read more runes from the source.
 	Transform(rd *Reader, c Char) (Char, error)
 }
 
 // normalizeNewline transform common newline sequences to a single newline (\U000A). The next rune position
-// of the provided Reader is bumped to the next row.
+// of the provided Reader is bumped to the next row. If a newline is identified the "next position" in the Reader
+// is moved to the start of the next row. If there was an error normalizing newlines the error is returned.
 type normalizeNewline struct{}
 
 func (n normalizeNewline) Transform(rd *Reader, c Char) (Char, error) {
@@ -287,6 +296,7 @@ func (n normalizeNewline) Transform(rd *Reader, c Char) (Char, error) {
 				fmt.Errorf("error reading rune from source: %w", err))
 		}
 		if r == '\u000A' {
+			// We treat CR + NL as a single rune in the source so we step back one position.
 			rd.step(-1)
 		} else {
 			err = rd.unreadRune()
@@ -299,6 +309,8 @@ func (n normalizeNewline) Transform(rd *Reader, c Char) (Char, error) {
 	return c, nil
 }
 
+// unicodeEscape transform a unicode escape rune sequence "\uhhhh" to the rune represented by the hexadecimal
+// number 'hhhh'. If the escape sequence is illegal or incomplete an error is returned.
 type unicodeEscape struct{}
 
 func (u unicodeEscape) Transform(rd *Reader, c Char) (Char, error) {
@@ -306,6 +318,7 @@ func (u unicodeEscape) Transform(rd *Reader, c Char) (Char, error) {
 	if c.Rune != '\u005C' {
 		return c, nil
 	}
+	// 'u'
 	r, pos, err := rd.readRune()
 	if errors.Is(err, io.EOF) {
 		return c, goerrors.NewPositionalError(pos.Row, pos.Col, fmt.Errorf("unexpected EOF reading unicode escape"))
@@ -313,9 +326,8 @@ func (u unicodeEscape) Transform(rd *Reader, c Char) (Char, error) {
 	if err != nil {
 		return c, goerrors.NewPositionalError(pos.Row, pos.Col, fmt.Errorf("error reading rune from source: %w", err))
 	}
-	// 'u'
 	if r != 'u' {
-		// Not a unicode escape but may be a rune escape.
+		// Not a unicode escape but may be a rune escape. Unread rune.
 		err = rd.unreadRune()
 		if err != nil {
 			return c, goerrors.NewPositionalError(pos.Row, pos.Col,
@@ -323,7 +335,8 @@ func (u unicodeEscape) Transform(rd *Reader, c Char) (Char, error) {
 		}
 		return c, nil
 	}
-	// Read four hex digits (1234) and create a unicode escape string ('\u1234')
+	// Now we assume a unicode escape and will fail if not so.
+	// Read four hex digits (1234) and create a unicode escape string ("'\u1234'")
 	var sb strings.Builder
 	sb.WriteString(`'\u`)
 	for i := 1; i <= 4; i++ {
@@ -337,7 +350,8 @@ func (u unicodeEscape) Transform(rd *Reader, c Char) (Char, error) {
 		sb.WriteRune(r)
 	}
 	sb.WriteRune('\'')
-	// Transform unicode escape string '\u1234' to the resulting rune
+	// Transform unicode escape string '\u1234' to the resulting rune.
+	// Is there a better and easier to use standard library function for the conversion?
 	src := sb.String()
 	var res string
 	res, err = strconv.Unquote(src)
@@ -345,11 +359,14 @@ func (u unicodeEscape) Transform(rd *Reader, c Char) (Char, error) {
 		return c, goerrors.NewPositionalError(c.Pos.Row, c.Pos.Col,
 			fmt.Errorf("error parsing unicode escaped rune %s: %w", src, err))
 	}
-	// As the unquoted string contained a single unicode escape the first rune should be the resulting rune
+	// As the unquoted string contained a single unicode escape the first rune should be the unicode escaped rune.
 	c.Rune = []rune(res)[0]
 	return c, nil
 }
 
+// runeEscape transforms a configured rune escape sequences "\<from rune>" => <to rune>. If there is no configured
+// transformation for <from rune> then <from rune> itself is returned. The resulting rune is marked as escaped
+// Char.Escaped = true. If there was an error transforming the rune escape the error is returned.
 type runeEscape struct {
 	escapes map[rune]rune
 }
@@ -359,7 +376,7 @@ func (e runeEscape) Transform(rd *Reader, c Char) (Char, error) {
 	if c.Rune != '\u005C' {
 		return c, nil
 	}
-	// Read escaped rune and transform it if found
+	// <from rune>
 	from, _, err := rd.readRune()
 	// If EOF we got an illegal incomplete rune escape
 	if errors.Is(err, io.EOF) {
@@ -368,6 +385,8 @@ func (e runeEscape) Transform(rd *Reader, c Char) (Char, error) {
 	if err != nil {
 		return c, goerrors.NewPositionalError(c.Pos.Row, c.Pos.Col, fmt.Errorf("error reading rune from source: %w", err))
 	}
+	// Check if there is a specified transform <from rune> => <to rune>. Otherwise use <from rune> as <to rune>.
+	// Mark <to rune> as escaped.
 	to, ok := e.escapes[from]
 	if ok {
 		c.Rune = to
