@@ -1,0 +1,10 @@
+*.doc	binary
+*.docx	binary
+*.ppt	binary
+*.pptx	binary
+*.xls	binary
+*.xlsx	binary
+*.vsd	binary
+*.png   binary
+*.jpg   binary
+*.jks   binary
