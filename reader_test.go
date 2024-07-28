@@ -35,6 +35,12 @@ func TestCharReaderRollback_IllegalState(t *testing.T) {
 	}
 }
 
+func TestBuilder_NoSourcePanic(t *testing.T) {
+	defer func() { recover() }()
+	_ = Builder{}.WithSize(10, 5).Reader()
+	t.Errorf("Builder.Reader should have raised a panic.")
+}
+
 func TestReader(t *testing.T) {
 	tests := []struct {
 		name   string

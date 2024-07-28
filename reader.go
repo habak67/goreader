@@ -42,13 +42,13 @@ type State struct {
 	bufState gobuffer.State
 }
 
-// New creates a new Reader with a decent buffer size and no transformers. For more configuration of the
-// Reader use the function Build.
+// New creates a new Reader with a source, a decent buffer size and no transformers. For more configuration of the
+// Reader use the Builder generator type.
 func New(source io.Reader) *Reader {
 	return Builder{}.WithSource(source).Reader()
 }
 
-// Builder implements a Reader builder. It is used to create a more customized Reader.
+// Builder is a Reader generator. It is used to create a more customized Reader.
 type Builder struct {
 	reader *Reader
 }
@@ -104,9 +104,13 @@ func (b Builder) WithRuneEscape(escapes map[rune]rune) Builder {
 }
 
 // Reader returns the Reader created from the builder. If no buffer size has been specified using method WithSize
-// then a decent default size will be used for the created Reader.
+// then a decent default size will be used for the created Reader. If a reader source has not been specified, using
+// Builder.WithSource, then a panic is raised.
 func (b Builder) Reader() *Reader {
 	reader := b.reader
+	if reader.reader == nil {
+		panic("method WithSource has not been called to set the source for the reader to be created")
+	}
 	if reader.buffer == nil {
 		reader.buffer = gobuffer.NewWithSize[Char](100, 10)
 	}
