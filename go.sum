@@ -2,6 +2,8 @@ github.com/habak67/gobuffer v0.2.0/go.mod h1:4YVwELEP0RaR7KJd+ERUUS5fxiFp1JJdssN
 github.com/habak67/gobuffer v0.3.0/go.mod h1:4YVwELEP0RaR7KJd+ERUUS5fxiFp1JJdssNAbqDNmdU=
 github.com/habak67/gobuffer v0.4.0 h1:JnwJAv5Sj08bP7ys9OYv3KRGg9175luSCHtsr611F+A=
 github.com/habak67/gobuffer v0.4.0/go.mod h1:4YVwELEP0RaR7KJd+ERUUS5fxiFp1JJdssNAbqDNmdU=
+github.com/habak67/gobuffer v0.4.1 h1:DROXxQd/TqC9Xf2VFXTSrAlkkTjaBQlS1H47aPrWC5Q=
+github.com/habak67/gobuffer v0.4.1/go.mod h1:4YVwELEP0RaR7KJd+ERUUS5fxiFp1JJdssNAbqDNmdU=
 github.com/habak67/goerrors v0.1.0 h1:HGHWT/j4aFkRY+0UPRzwMyKRhF6lZy1SUG7AYEa+fW4=
 github.com/habak67/goerrors v0.1.0/go.mod h1:DEGkBmiBIEX45+XmvstrD/UAUH8Ajh5rLKnWzwpcwOk=
 github.com/habak67/goslices v0.1.0/go.mod h1:fFJwNkSJQGyGOzf7Oh9u637ZWwJr+k9pQpRInnQSHtk=

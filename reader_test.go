@@ -26,12 +26,17 @@ func TestCharReaderRollback_IllegalState(t *testing.T) {
 	reader := Builder{}.WithSource(strings.NewReader("12345678901234567890")).WithSize(10, 5).Reader()
 	state := reader.State()
 	for i := 0; i < 15; i++ {
+		_, err := reader.Next()
+		if err != nil {
+			t.Errorf("unexpected error from next: %v", err)
+			return
+		}
 		reader.Consume()
 	}
 	reader.Commit()
 	err := reader.Rollback(state)
 	if err == nil || err.Error() != gobuffer.IllegalStateError.Error() {
-		t.Errorf("expcted error rollback to illegal state")
+		t.Errorf("expected error rollback to illegal state (got %v)", err)
 	}
 }
 
@@ -55,6 +60,16 @@ func TestReader(t *testing.T) {
 				opNext[Char]{newChar('a', 1, 1)},
 				opNext[Char]{newChar('a', 1, 1)},
 				opConsume{},
+				opEOF{},
+			},
+		},
+		{
+			name:   "multiple EOF at end",
+			reader: Builder{}.WithSource(strings.NewReader("a")).Reader(),
+			ops: []any{
+				opNextAndConsume[Char]{newChar('a', 1, 1)},
+				opEOF{},
+				opEOF{},
 				opEOF{},
 			},
 		},
