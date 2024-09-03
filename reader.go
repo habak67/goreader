@@ -181,6 +181,11 @@ func (r *Reader) Next() (c Char, err error) {
 	return
 }
 
+// Pos returns the position of the "next char". That is, the char returned by method Next().
+func (r *Reader) Pos() Position {
+	return r.pos
+}
+
 // Consume will consume the next rune (returned by Reader.Next) from the Reader. The next rune (returned by
 // Reader.Next) will be the rune after the previous next rune.
 func (r *Reader) Consume() {

@@ -89,6 +89,27 @@ func TestReader(t *testing.T) {
 			},
 		},
 		{
+			name:   "pos",
+			reader: Builder{}.WithSource(strings.NewReader("ab\nc")).WithNormalizeNewline().Reader(),
+			ops: []any{
+				opPos{Pos: Position{Row: 1, Col: 1}},
+				opNext[Char]{newChar('a', 1, 1)},
+				opPos{Pos: Position{Row: 1, Col: 1}},
+				opConsume{},
+				opPos{Pos: Position{Row: 1, Col: 2}},
+				opNext[Char]{newChar('b', 1, 2)},
+				opConsume{},
+				opPos{Pos: Position{Row: 1, Col: 3}},
+				opNext[Char]{newChar('\n', 1, 3)},
+				opConsume{},
+				opPos{Pos: Position{Row: 2, Col: 1}},
+				opNext[Char]{newChar('c', 2, 1)},
+				opPos{Pos: Position{Row: 2, Col: 1}},
+				opConsume{},
+				opEOF{},
+			},
+		},
+		{
 			name:   "repeating EOF",
 			reader: Builder{}.WithSource(strings.NewReader("a")).Reader(),
 			ops: []any{
@@ -358,6 +379,10 @@ type opRollback struct {
 type opCommit struct{}
 
 type opEOF struct{}
+
+type opPos struct {
+	Pos Position
+}
 
 var errorReaderError = errors.New("reader test error")
 
