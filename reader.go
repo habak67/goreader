@@ -4,12 +4,13 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"github.com/habak67/gobuffer"
-	"github.com/habak67/goerrors"
-	"github.com/habak67/gostrings"
 	"io"
 	"strconv"
 	"strings"
+
+	"github.com/habak67/gobuffer"
+	"github.com/habak67/goerrors"
+	"github.com/habak67/gostrings"
 )
 
 // Position represents the position in a two-dimensional space containing rows and columns.
@@ -240,7 +241,7 @@ func (r *Reader) bufferChar() error {
 
 func (r *Reader) readRune() (ru rune, pos Position, err error) {
 	// Read the next rune from source and step "next position". Note that we as default treat newline
-	// as an ordinary rune and will not bump the row. If such behaviour is wanted the NormalizeNewline
+	// as an ordinary rune and will not bump the row. If such behavior is wanted the NormalizeNewline
 	// transformer should be used.
 	ru, _, err = r.reader.ReadRune()
 	if err != nil {
